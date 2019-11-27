@@ -25,7 +25,9 @@ enum PermissionName {
   // Android
   SMS,
   // Android
-  Storage
+  Storage,
+  // Android
+  PhoneState
 }
 ```
 

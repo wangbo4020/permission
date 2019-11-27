@@ -123,6 +123,9 @@ public class PermissionPlugin implements MethodCallHandler, PluginRegistry.Reque
             case "Storage":
                 result = Manifest.permission.READ_EXTERNAL_STORAGE;
                 break;
+            case "PhoneState":
+                result = Manifest.permission.READ_PHONE_STATE;
+                break;
             default:
                 result = "ERROR";
                 break;
