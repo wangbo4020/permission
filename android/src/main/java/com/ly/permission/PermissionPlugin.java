@@ -148,7 +148,9 @@ public class PermissionPlugin implements MethodCallHandler, PluginRegistry.Reque
                     intList.add(0);
                 }
             }
-            result.success(intList);
+            if (result != null) {
+                result.success(intList);
+            }
         }
         return true;
     }
