@@ -7,12 +7,16 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.provider.Settings;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
@@ -20,8 +24,8 @@ import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
-public class PermissionPlugin implements MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
-    private Registrar registrar;
+public class PermissionPlugin implements FlutterPlugin, ActivityAware, MethodCallHandler, PluginRegistry.RequestPermissionsResultListener {
+
     private Result result;
 
     public static void registerWith(Registrar registrar) {
@@ -31,12 +35,51 @@ public class PermissionPlugin implements MethodCallHandler, PluginRegistry.Reque
         registrar.addRequestPermissionsResultListener(permissionPlugin);
     }
 
+    public PermissionPlugin() {
+    }
+
     private PermissionPlugin(Registrar registrar) {
-        this.registrar = registrar;
+        this.mActivity = registrar.activity();
+    }
+
+    private Activity mActivity;
+    private MethodChannel mChannel;
+
+    @Override
+    public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+        mChannel = new MethodChannel(binding.getBinaryMessenger(), "plugins.ly.com/permission");
+        mChannel.setMethodCallHandler(this);
     }
 
     @Override
-    public void onMethodCall(MethodCall call, Result result) {
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        mChannel.setMethodCallHandler(null);
+        mChannel = null;
+    }
+
+    @Override
+    public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        mActivity = binding.getActivity();
+        binding.addRequestPermissionsResultListener(this);
+    }
+
+    @Override
+    public void onDetachedFromActivityForConfigChanges() {
+        onDetachedFromActivity();
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        onAttachedToActivity(binding);
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        mActivity = null;
+    }
+
+    @Override
+    public void onMethodCall(MethodCall call, @NonNull Result result) {
         List<String> permissions;
         switch (call.method) {
             case "getPermissionsStatus":
@@ -60,10 +103,10 @@ public class PermissionPlugin implements MethodCallHandler, PluginRegistry.Reque
 
     private List<Integer> get(List<String> permissions) {
         List<Integer> intList = new ArrayList<>();
-        Activity activity = registrar.activity();
+        Activity activity = mActivity;
         for (String permission : permissions) {
             permission = getManifestPermission(permission);
-            if (ContextCompat.checkSelfPermission(registrar.activity(), permission) == PackageManager.PERMISSION_DENIED) {
+            if (ContextCompat.checkSelfPermission(activity, permission) == PackageManager.PERMISSION_DENIED) {
                 if (!ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)) {
                     intList.add(3);
                 } else {
@@ -77,7 +120,7 @@ public class PermissionPlugin implements MethodCallHandler, PluginRegistry.Reque
     }
 
     private void requests(List<String> permissionList) {
-        Activity activity = registrar.activity();
+        Activity activity = mActivity;
         String[] permissions = new String[permissionList.size()];
         for (int i = 0; i < permissionList.size(); i++) {
             permissions[i] = getManifestPermission(permissionList.get(i));
@@ -86,7 +129,7 @@ public class PermissionPlugin implements MethodCallHandler, PluginRegistry.Reque
     }
 
     private void openSettings() {
-        Activity activity = registrar.activity();
+        Activity activity = mActivity;
         Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + activity.getPackageName()));
         intent.addCategory(Intent.CATEGORY_DEFAULT);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -139,7 +182,7 @@ public class PermissionPlugin implements MethodCallHandler, PluginRegistry.Reque
             List<Integer> intList = new ArrayList<>();
             for (int i = 0; i < ints.length; i++) {
                 if (ints[i] == PackageManager.PERMISSION_DENIED) {
-                    if (!ActivityCompat.shouldShowRequestPermissionRationale(registrar.activity(), strings[i])) {
+                    if (!ActivityCompat.shouldShowRequestPermissionRationale(mActivity, strings[i])) {
                         intList.add(3);
                     } else {
                         intList.add(1);
